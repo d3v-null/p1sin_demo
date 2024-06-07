@@ -19,10 +19,10 @@ __global__ void p1sin_kernel(int8_t n_max, const FLOAT *azs, const FLOAT *zas, c
     }
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    // program will segfault for num_directions > 32
-    int num_directions = 999;
+    int num_directions = atoi(argv[argc - 1]);
+    printf("num_directions: %d\n", num_directions);
     FLOAT az_rad[num_directions];
     FLOAT za_rad[num_directions];
     FLOAT PI = 3.14159265358979323846;
@@ -30,7 +30,7 @@ int main()
     {
         az_rad[i] = 0.4 + 0.3 * PI * ((FLOAT)i / (FLOAT)num_directions);
         za_rad[i] = 0.3 + 0.4 * PI * ((FLOAT)i / (FLOAT)num_directions) / 2.0;
-        printf("[%d] az %f, za %f\n", i, az_rad[i], za_rad[i]);
+        // printf("[%d] az %f, za %f\n", i, az_rad[i], za_rad[i]);
     }
     FLOAT *d_azs, *d_zas;
     GPUCHECK(gpuMalloc(&d_azs, num_directions * sizeof(FLOAT)));
