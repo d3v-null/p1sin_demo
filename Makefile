@@ -1,24 +1,21 @@
-SOURCES = fee.cu
+SOURCES = $(wildcard *.cu)
 OBJECTS = $(SOURCES:.cu=.o)
-EXECUTABLE=./fee
+BINS = $(SOURCES:.cu=)
 
 .PHONY: test
 
-all: $(EXECUTABLE) test
-
 CXX = hipcc
-CXXFLAGS =-g -O0 -gmodules
+CXXFLAGS = -g -O0 -gmodules
 HIPFLAGS = --offload-arch=gfx1101
 
-$(EXECUTABLE): $(OBJECTS)
-	$(CXX) $(OBJECTS) -o $@
+%.o: %.cu
+	$(CXX) $(CCFLAGS) -c $< -o $@
 
-test: $(EXECUTABLE)
-	$(EXECUTABLE)
-
-fee.o:
-	$(CXX) $(CXXFLAGS) -c fee.cu
+./fee : fee.o
+	$(CXX) fee.o -o $@
+./p1sin : p1sin.o
+	$(CXX) p1sin.o -o $@
 
 clean:
-	rm -f $(EXECUTABLE)
+	rm -f $(BINS )
 	rm -f $(OBJECTS)
