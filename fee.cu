@@ -95,7 +95,7 @@ __global__ void print_coeffs(const FEECoeffs d_coeffs)
 int main()
 {
     // program will segfault for num_directions > 32
-    int num_directions = 33;
+    int num_directions = 999;
     FLOAT az_rad[num_directions];
     FLOAT za_rad[num_directions];
     FLOAT PI = 3.14159265358979323846;
@@ -214,10 +214,10 @@ int main()
     GPUCHECK(gpuMalloc(&d_results, num_unique_tiles * num_unique_freqs * num_directions * 8 * sizeof(FLOAT)));
 
     // sanity check: device can access coeffs
-    dim3 gridDim = dim3(1, 1, 1);
-    dim3 blockDim = dim3(1, 1, 1);
-    print_coeffs<<<gridDim, blockDim>>>(*d_coeffs);
-    GPUCHECK(gpuDeviceSynchronize());
+    // dim3 gridDim = dim3(1, 1, 1);
+    // dim3 blockDim = dim3(1, 1, 1);
+    // print_coeffs<<<gridDim, blockDim>>>(*d_coeffs);
+    // GPUCHECK(gpuDeviceSynchronize());
 
     const char *error_message_ptr = gpu_fee_calc_jones(
         d_azs, d_zas, num_directions, d_coeffs, num_coeffs, NULL, d_latitude_rad, true, d_results);

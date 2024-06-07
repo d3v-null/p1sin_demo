@@ -1,21 +1,21 @@
 SOURCES = $(wildcard *.cu)
-OBJECTS = $(SOURCES:.cu=.o)
 BINS = $(SOURCES:.cu=)
 
 .PHONY: test
 
 CXX = hipcc
-CXXFLAGS = -g -O0 -gmodules
-HIPFLAGS = --offload-arch=gfx1101
+GDB = rocgdb
+GDBINIT := rocgdbinit
+CXXFLAGS := -g -O0 -gmodules
+GPUFLAGS := --offload-arch=gfx1101
 
-%.o: %.cu
-	$(CXX) $(CCFLAGS) -c $< -o $@
+$(BINS) :
+	$(CXX) $(CCFLAGS) $(GPUFLAGS) $@.cu -o $@
 
-./fee : fee.o
-	$(CXX) fee.o -o $@
-./p1sin : p1sin.o
-	$(CXX) p1sin.o -o $@
+fee_debug : fee
+	$(GDB) -x $(GDBINIT) --args ./fee
+p1sin_debug : p1sin
+	$(GDB) -x $(GDBINIT) --args ./p1sin
 
 clean:
-	rm -f $(BINS )
-	rm -f $(OBJECTS)
+	rm -f ./fee ./p1sin
