@@ -1,6 +1,8 @@
-# hyperbeam demo
+# HIP segfault demo
 
-This demonstrates a segfault that occurs in hip, but not when the same code is run in cuda.
+This demonstrates a segfault that occurs in the `jones_p1sin_device` function of [mwa_hyperbeam](https://github.com/mwaTelescope/mwa_hyperbeam).
+
+It only occurs in HIP, but not when the same code is run in CUDA.
 
 ## setup
 
