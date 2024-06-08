@@ -1,11 +1,12 @@
 
-#define HIP_ENABLE_PRINTF
+#define HIP_ENABLE_debug_printf
 
 #include "fee.h"
 
 // replicate parts of fee.h:fee_kernel that call p1sin_device
 __global__ void p1sin_kernel(int8_t n_max, const FLOAT *azs, const FLOAT *zas, const int num_directions)
 {
+    debug_printf("p1sin_kernel blockIdx %d %d threadIdx %d %d \n", blockIdx.x, blockIdx.y, threadIdx.x, threadIdx.y);
     for (int i_direction = blockIdx.x * blockDim.x + threadIdx.x; i_direction < num_directions;
          i_direction += gridDim.x * blockDim.x)
     {
@@ -21,7 +22,7 @@ __global__ void p1sin_kernel(int8_t n_max, const FLOAT *azs, const FLOAT *zas, c
 int main(int argc, char *argv[])
 {
     int num_directions = atoi(argv[argc - 1]);
-    printf("num_directions: %d\n", num_directions);
+    debug_printf("num_directions: %d\n", num_directions);
     FLOAT az_rad[num_directions];
     FLOAT za_rad[num_directions];
     FLOAT PI = 3.14159265358979323846;
@@ -29,7 +30,7 @@ int main(int argc, char *argv[])
     {
         az_rad[i] = 0.4 + 0.3 * PI * ((FLOAT)i / (FLOAT)num_directions);
         za_rad[i] = 0.3 + 0.4 * PI * ((FLOAT)i / (FLOAT)num_directions) / 2.0;
-        // printf("[%d] az %f, za %f\n", i, az_rad[i], za_rad[i]);
+        // debug_printf("[%d] az %f, za %f\n", i, az_rad[i], za_rad[i]);
     }
     FLOAT *d_azs, *d_zas;
     GPUCHECK(gpuMalloc(&d_azs, num_directions * sizeof(FLOAT)));
@@ -44,6 +45,6 @@ int main(int argc, char *argv[])
     blockDim.x = warpSize;
     gridDim.x = (int)ceil((double)num_directions / (double)blockDim.x);
     gridDim.y = num_coeffs;
-
+    debug_printf("gridDim: %d %d, blockDim: %d %d\n", gridDim.x, gridDim.y, blockDim.x, blockDim.y);
     p1sin_kernel<<<gridDim, blockDim>>>(n_max, d_azs, d_zas, num_directions);
 }

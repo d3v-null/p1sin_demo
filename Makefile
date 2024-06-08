@@ -1,12 +1,12 @@
 SOURCES = $(wildcard *.cu)
-HEADERS = $(wildcard *.h)
+HEADERS = $(wildcard *.h) $(wildcard *.cuh)
 BINS = $(SOURCES:.cu=)
 
 # hip
 CXX = hipcc
 GDB = rocgdb
 GDBINIT := $(GDB)init
-GPUFLAGS := --offload-arch=gfx1101 -g -O0 -gmodules
+GPUFLAGS := --offload-arch=gfx1101 -g -O0 -gmodules -I/opt/rocm/include -lhip
 
 # cuda: (oneliner) CXX=nvcc GDB=cuda-gdb GPUFLAGS="-g -G -arch=sm_86"
 # CXX = nvcc

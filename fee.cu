@@ -5,6 +5,9 @@
 #define HIP_ENABLE_PRINTF
 
 #include "fee.h"
+#if __HIPCC__
+#include "hip_helpers.cuh"
+#endif
 
 __global__ void print_coeffs(const FEECoeffs *d_coeffs)
 {
@@ -94,6 +97,10 @@ __global__ void print_coeffs(const FEECoeffs *d_coeffs)
 
 int main(int argc, char *argv[])
 {
+#if __HIPCC__
+    h_report_on_device(0);
+#endif
+
     int num_directions = atoi(argv[argc - 1]);
     printf("num_directions: %d\n", num_directions);
     FLOAT az_rad[num_directions];
@@ -230,7 +237,7 @@ int main(int argc, char *argv[])
     GPUCHECK(gpuMemcpy(results, d_results, num_unique_tiles * num_unique_freqs * num_directions * 8 * sizeof(FLOAT), gpuMemcpyDeviceToHost));
     for (int i = 0; i < num_directions; i++)
     {
-        printf("[%d] %f %f %f %f %f %f %f %f\n", i, results[i * 8], results[i * 8 + 1], results[i * 8 + 2], results[i * 8 + 3], results[i * 8 + 4], results[i * 8 + 5], results[i * 8 + 6], results[i * 8 + 7]);
+        printf("[%3d] %f %f %f %f %f %f %f %f\n", i, results[i * 8], results[i * 8 + 1], results[i * 8 + 2], results[i * 8 + 3], results[i * 8 + 4], results[i * 8 + 5], results[i * 8 + 6], results[i * 8 + 7]);
     }
 
     return 0;

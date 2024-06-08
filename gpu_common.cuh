@@ -226,6 +226,8 @@ inline static __device__ FLOAT get_parallactic_angle(HADec hadec, FLOAT latitude
     return ((sqsz != 0.0 || cqsz != 0.0) ? ATAN2(sqsz, cqsz) : 0.0);
 }
 
+#endif // BINDGEN
+
 // from https://github.com/ROCm/HIP/blob/master/tests/src/test_common.h
 
 #define KNRM "\x1B[0m"
@@ -272,7 +274,16 @@ inline static __device__ FLOAT get_parallactic_angle(HADec hadec, FLOAT latitude
         }                                                                                         \
     }
 
-#endif // BINDGEN
+#ifndef DEBUG
+#define DEBUG 0
+#endif
+
+#define debug_printf(fmt, ...)                       \
+    {                                                \
+        if (DEBUG)                                   \
+            printf("%s:%d:%s(): " fmt, __FILE__,     \
+                   __LINE__, __func__, __VA_ARGS__); \
+    }
 
 /*----------------------------------------------------------------------
 **

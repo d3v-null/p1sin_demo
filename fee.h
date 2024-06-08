@@ -251,6 +251,8 @@ extern "C"
 
     inline __device__ int jones_p1sin_device(const int nmax, const FLOAT theta, FLOAT *p1sin_out, FLOAT *p1_out)
     {
+        if (threadIdx.x % 16 == 0)
+            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] start \n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z);
         int n, m;
         int ind_start, ind_stop;
         int modified;
@@ -259,6 +261,23 @@ extern "C"
         FLOAT P[NMAX + 1], Pm1[NMAX + 1], Pm_sin[NMAX + 1], Pu_mdelu[NMAX + 1], Pm_sin_merged[NMAX * 2 + 1],
             Pm1_merged[NMAX * 2 + 1];
         FLOAT legendre_table[NMAX * (NMAX + 1)], legendret[(((NMAX + 2) * (NMAX + 1)) / 2)];
+        if (threadIdx.x % 16 == 0)
+            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p    <- &p1sin_out\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &p1sin_out);
+        if (threadIdx.x % 16 == 0)
+            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- p1sin_out\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, p1sin_out, NMAX * NMAX + 2 * NMAX);
+        if (threadIdx.x % 16 == 0)
+            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p    <- &p1_out\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &p1_out);
+        if (threadIdx.x % 16 == 0)
+            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- p1_out\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, p1_out, NMAX * NMAX + 2 * NMAX);
+        // if (threadIdx.x % 16 == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- P\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, P, NMAX + 1);
+        // if (threadIdx.x % 16 == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- Pm1\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, Pm1, NMAX + 1);
+        // if (threadIdx.x % 16 == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- Pm_sin\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, Pm_sin, NMAX + 1);
+        // if (threadIdx.x % 16 == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- Pu_mdelu\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, Pu_mdelu, NMAX + 1);
+        // if (threadIdx.x % 16 == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- Pm_sin_merged\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, Pm_sin_merged, NMAX * 2 + 1);
+        // if (threadIdx.x % 16 == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- Pm1_merged\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, Pm1_merged, NMAX * 2 + 1);
+        // if (threadIdx.x % 16 == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- legendre_table\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, legendre_table, NMAX * (NMAX + 1));
+        if (threadIdx.x % 16 == 0)
+            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- legendret\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, legendre_table, (((NMAX + 2) * (NMAX + 1)) / 2));
 
         SINCOS(theta, &sin_th, &u);
         // Create a look-up table for the legendre polynomials
@@ -330,6 +349,9 @@ extern "C"
             }
         }
 
+        if (threadIdx.x % 16 == 0)
+            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] end \n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z);
+
         return nmax;
     }
 
@@ -397,9 +419,13 @@ extern "C"
     __global__ void fee_kernel(const FEECoeffs coeffs, const FLOAT *azs, const FLOAT *zas, const int num_directions,
                                const JONES *norm_jones, const FLOAT *latitude_rad, const int iau_order, JONES *fee_jones)
     {
+        if (threadIdx.x % 16 == 0)
+            debug_printf("start (%3d,%3d,%3d)[%3d,%3d,%3d] \n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z);
         for (int i_direction = blockIdx.x * blockDim.x + threadIdx.x; i_direction < num_directions;
              i_direction += gridDim.x * blockDim.x)
         {
+            if (threadIdx.x % 16 == 0)
+                debug_printf("i direction: %d\n", i_direction);
             const FLOAT az = azs[i_direction];
             const FLOAT za = zas[i_direction];
             const FLOAT phi = M_PI_2 - az;
@@ -407,8 +433,13 @@ extern "C"
             // Set up our "P1sin" arrays. This is pretty expensive, but only depends
             // on the zenith angle and "n_max".
             FLOAT P1sin_arr[NMAX * NMAX + 2 * NMAX], P1_arr[NMAX * NMAX + 2 * NMAX];
+            if (threadIdx.x % 16 == 0)
+                debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- P1sin_arr\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, P1sin_arr, NMAX * NMAX + 2 * NMAX);
+            if (threadIdx.x % 16 == 0)
+                debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- P1_arr\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, P1_arr, NMAX * NMAX + 2 * NMAX);
             jones_p1sin_device(coeffs.n_max, za, P1sin_arr, P1_arr);
-
+            if (threadIdx.x % 16 == 0)
+                debug_printf("i direction: %d (%3d,%3d,%3d)\n", i_direction, blockIdx.x, blockIdx.y, blockIdx.z);
             const int x_offset = coeffs.x_offsets[blockIdx.y];
             const int y_offset = coeffs.y_offsets[blockIdx.y];
             JONES jm;
@@ -450,6 +481,7 @@ extern "C"
         blockDim.x = warpSize;
         gridDim.x = (int)ceil((double)num_directions / (double)blockDim.x);
         gridDim.y = num_coeffs;
+        debug_printf("gridDim (%3d,%3d,%3d) blockDim: [%3d,%3d,%3d]\n", gridDim.x, gridDim.y, gridDim.z, blockDim.x, blockDim.y, blockDim.z);
         fee_kernel<<<gridDim, blockDim>>>(*d_coeffs, d_azs, d_zas, num_directions, (JONES *)d_norm_jones, d_latitude_rad,
                                           iau_order, (JONES *)d_results);
 
