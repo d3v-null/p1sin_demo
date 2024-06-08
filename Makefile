@@ -1,22 +1,28 @@
 SOURCES = $(wildcard *.cu)
+HEADERS = $(wildcard *.h)
 BINS = $(SOURCES:.cu=)
 
-.PHONY: test
-
+# hip
 CXX = hipcc
 GDB = rocgdb
-GDBINIT := rocgdbinit
-CXXFLAGS := -g -O0 -gmodules
-GPUFLAGS := --offload-arch=gfx1101
+GDBINIT := $(GDB)init
+GPUFLAGS := --offload-arch=gfx1101 -g -O0 -gmodules
+
+# cuda: (oneliner) CXX=nvcc GDB=cuda-gdb GPUFLAGS="-g -G -arch=sm_86"
+# CXX = nvcc
+# GDB = cuda-gdb
+# GDBINIT := cuda-gdbinit
+# GPUFLAGS := -g -G -arch=sm_86
+
 NDIRS := 33
 
-$(BINS) :
-	$(CXX) $(CXXFLAGS) $(GPUFLAGS) $@.cu -o $@
+$(BINS) : $(SOURCES) $(HEADERS)
+	$(CXX) $(GPUFLAGS) $@.cu -o $@
 
-fee_debug : fee
-	$(GDB) -x $(GDBINIT) --args ./fee $(NDIRS)
-p1sin_debug : p1sin
-	$(GDB) -x $(GDBINIT) --args ./p1sin $(NDIRS)
+dbg_fee : fee
+	$(GDB) -x $(GDBINIT) --args ./$< $(NDIRS)
+dbg_p1sin : p1sin
+	$(GDB) -x $(GDBINIT) --args ./$< $(NDIRS)
 
 clean:
 	rm -f ./fee ./p1sin

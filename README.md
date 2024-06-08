@@ -14,7 +14,7 @@ This demonstrates a segfault that occurs in hip, but not when the same code is r
 full example of how code is actually used
 
 ```bash
-make clean NDIRS=99 GPUFLAGS=--offload-arch=gfx1101 fee_debug
+make clean NDIRS=99 GPUFLAGS="-g -O0 --offload-arch=gfx1101" dbg_fee
 ```
 
 on my hardware, this segfaults at 33+ directions, but not 32.
@@ -33,7 +33,7 @@ only calls `jones_p1sin_device` where the segfault happens in the previous examp
 
 
 ```bash
-make clean NDIRS=99 GPUFLAGS=--offload-arch=gfx1101 p1sin_debug
+make clean NDIRS=99 GPUFLAGS="-g -O0 --offload-arch=gfx1101" dbg_p1sin
 ```
 
 Does not trigger the segfault at 99 directions
@@ -50,4 +50,29 @@ Thread 6 "fee" received signal SIGBUS, Bus error.
 0x00007fffed26994c in jones_p1sin_device (nmax=<error reading variable: Cannot access memory at address private_lane#0x446c>, theta=<error reading variable: Cannot access memory at address private_lane#0x4470>,
     p1sin_out=<error reading variable: Cannot access memory at address private_lane#0x4478>, p1_out=<error reading variable: Cannot access memory at address private_lane#0x4480>) at ./fee.h:328
 328                     p1_out[i] = Pm1_merged[modified];
+```
+
+### cuda
+
+no issues with CUDA at all.
+
+```bash
+make clean CXX=nvcc GDB=cuda-gdb GPUFLAGS="-g -G -arch=sm_86" NDIRS=9999 dbg_fee
+```
+
+```txt
+...
+[9996] -0.002828 0.000503 0.000859 0.000044 0.000871 0.001035 0.001226 0.004104
+[9997] -0.002818 0.000498 0.000856 0.000046 0.000872 0.001035 0.001233 0.004101
+[9998] -0.002809 0.000492 0.000852 0.000048 0.000873 0.001034 0.001241 0.004099
+...
+[Inferior 1 (process 49383) exited normally]
+```
+
+```bash
+make clean CXX=nvcc GDB=cuda-gdb GDBINIT=cudagdbinit GPUFLAGS="-g -G -arch=sm_86" NDIRS=9999 dbg_p1sin
+```
+
+```txt
+[Inferior 1 (process 50965) exited normally]
 ```
