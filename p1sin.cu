@@ -9,7 +9,6 @@ __global__ void p1sin_kernel(int8_t n_max, const FLOAT *azs, const FLOAT *zas, c
     for (int i_direction = blockIdx.x * blockDim.x + threadIdx.x; i_direction < num_directions;
          i_direction += gridDim.x * blockDim.x)
     {
-        const FLOAT az = azs[i_direction];
         const FLOAT za = zas[i_direction];
 
         // Set up our "P1sin" arrays. This is pretty expensive, but only depends
