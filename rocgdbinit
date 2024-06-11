@@ -1,2 +1,4 @@
 set amdgpu precise-memory on
+set disassemble-next-line on
+set print pretty on
 run
