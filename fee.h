@@ -215,48 +215,43 @@ extern "C"
         }
     }
 
-    inline __device__ int lidx_device(const int l, const int m)
+    inline __device__ int lidx_device(const int i_direction, const int l, const int m)
     {
         // summation series over l + m => (l*(l+1))/2 + m
-        return ((l * (l + 1)) >> 1) + m;
+        return i_direction*(((NMAX + 1)*(NMAX + 2)) >> 1) + ((l * (l + 1)) >> 1) + m;
     }
 
-    inline __device__ void legendre_polynomials_device(FLOAT *legendre, const FLOAT x, const int P)
+    inline __device__ void legendre_polynomials_device(FLOAT *legendre, const FLOAT *thetas, int i_direction)
     {
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p=%f <- x\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &x, x);
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p=%d <- P\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &P, P);
         // This factor is reuse 342210222sqrt(1 342210222 x^2)
         int l, m;
+        const FLOAT x = COS(thetas[i_direction]);
         const FLOAT factor = -SQRT(1.0 - (x * x));
 
         // Init legendre
-        legendre[lidx_device(0, 0)] = 1.0; // P_0,0(x) = 1
+        legendre[lidx_device(i_direction, 0, 0)] = 1.0; // P_0,0(x) = 1
         // Easy values
-        legendre[lidx_device(1, 0)] = x;      // P_1,0(x) = x
-        legendre[lidx_device(1, 1)] = factor; // P_1,1(x) = 342210222sqrt(1 342210222 x^2)
+        legendre[lidx_device(i_direction, 1, 0)] = x;      // P_1,0(x) = x
+        legendre[lidx_device(i_direction, 1, 1)] = factor; // P_1,1(x) = 342210222sqrt(1 342210222 x^2)
 
-        for (l = 2; l <= P; ++l)
+        for (l = 2; l <= NMAX; ++l)
         {
             for (m = 0; m < l - 1; ++m)
             {
                 // P_l,m = (2l-1)*x*P_l-1,m - (l+m-1)*x*P_l-2,m / (l-k)
-                legendre[lidx_device(l, m)] = ((FLOAT)(2 * l - 1) * x * legendre[lidx_device(l - 1, m)] -
-                                               (FLOAT)(l + m - 1) * legendre[lidx_device(l - 2, m)]) /
+                legendre[lidx_device(i_direction, l, m)] = ((FLOAT)(2 * l - 1) * x * legendre[lidx_device(i_direction, l - 1, m)] -
+                                               (FLOAT)(l + m - 1) * legendre[lidx_device(i_direction, l - 2, m)]) /
                                               (FLOAT)(l - m);
             }
             // P_l,l-1 = (2l-1)*x*P_l-1,l-1
-            legendre[lidx_device(l, l - 1)] = (FLOAT)(2 * l - 1) * x * legendre[lidx_device(l - 1, l - 1)];
+            legendre[lidx_device(i_direction, l, l - 1)] = (FLOAT)(2 * l - 1) * x * legendre[lidx_device(i_direction, l - 1, l - 1)];
             // P_l,l = (2l-1)*factor*P_l-1,l-1
-            legendre[lidx_device(l, l)] = (FLOAT)(2 * l - 1) * factor * legendre[lidx_device(l - 1, l - 1)];
+            legendre[lidx_device(i_direction, l, l)] = (FLOAT)(2 * l - 1) * factor * legendre[lidx_device(i_direction, l - 1, l - 1)];
         }
     }
 
-    inline __device__ int jones_p1sin_device(const int nmax, const FLOAT theta, FLOAT *p1sin_out, FLOAT *p1_out)
+    inline __device__ int jones_p1sin_device(const FLOAT *thetas, int i_direction, FLOAT *p1sin_out, FLOAT *p1_out, FLOAT *legendret)
     {
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] start \n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z);
         int n, m;
         int ind_start, ind_stop;
         int modified;
@@ -264,47 +259,16 @@ extern "C"
         const FLOAT delu = 1e-6;
         FLOAT P[NMAX + 1], Pm1[NMAX + 1], Pm_sin[NMAX + 1], Pu_mdelu[NMAX + 1], Pm_sin_merged[NMAX * 2 + 1],
             Pm1_merged[NMAX * 2 + 1];
-        FLOAT legendre_table[NMAX * (NMAX + 1)], legendret[(((NMAX + 2) * (NMAX + 1)) / 2)];
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p    <- &p1sin_out\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &p1sin_out);
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- p1sin_out\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, p1sin_out, NMAX * NMAX + 2 * NMAX);
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p    <- &p1_out\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &p1_out);
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- p1_out\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, p1_out, NMAX * NMAX + 2 * NMAX);
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p=%f <- theta\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &theta, theta);
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p=%f <- sin_th\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &sin_th, sin_th);
-        // if (threadIdx.x % gridDim.x == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- P\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, P, NMAX + 1);
-        // if (threadIdx.x % gridDim.x == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- Pm1\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, Pm1, NMAX + 1);
-        // if (threadIdx.x % gridDim.x == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- Pm_sin\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, Pm_sin, NMAX + 1);
-        // if (threadIdx.x % gridDim.x == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- Pu_mdelu\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, Pu_mdelu, NMAX + 1);
-        // if (threadIdx.x % gridDim.x == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- Pm_sin_merged\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, Pm_sin_merged, NMAX * 2 + 1);
-        // if (threadIdx.x % gridDim.x == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- Pm1_merged\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, Pm1_merged, NMAX * 2 + 1);
-        // if (threadIdx.x % gridDim.x == 0) debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- legendre_table\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, legendre_table, NMAX * (NMAX + 1));
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- legendret\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, legendre_table, (((NMAX + 2) * (NMAX + 1)) / 2));
 
+        const FLOAT theta = thetas[i_direction];
         SINCOS(theta, &sin_th, &u);
-        // Create a look-up table for the legendre polynomials
-        // Such that legendre_table[ m * nmax + (n-1) ] = legendre(n, m, u)
-        legendre_polynomials_device(legendret, u, nmax);
-        for (n = 1; n <= nmax; n++)
-        {
-            for (m = 0; m != n + 1; ++m)
-                legendre_table[m * nmax + (n - 1)] = legendret[lidx_device(n, m)];
-            for (m = n + 1; m != nmax + 1; ++m)
-                legendre_table[m * nmax + (n - 1)] = 0.0;
-        }
 
-        for (n = 1; n <= nmax; n++)
+        for (n = 1; n <= NMAX; n++)
         {
             int i;
             for (m = 0; m != n + 1; ++m)
             {
-                P[m] = legendre_table[m * nmax + (n - 1)];
+                P[m] = legendret[lidx_device(i_direction, n, m)];
             }
             memcpy(Pm1, &(P[1]), n * sizeof(FLOAT));
             Pm1[n] = 0;
@@ -360,7 +324,7 @@ extern "C"
         if (threadIdx.x % gridDim.x == 0)
             debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] end \n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z);
 
-        return nmax;
+        return NMAX;
     }
 
     inline __device__ void jones_calc_sigmas_device(const FLOAT phi, const FLOAT theta, const COMPLEX *q1_accum,
@@ -425,7 +389,8 @@ extern "C"
      * blockIdx.x * blockDim.x + threadIdx.x corresponds to direction.
      */
     __global__ void fee_kernel(const FEECoeffs coeffs, const FLOAT *azs, const FLOAT *zas, const int num_directions,
-                               const JONES *norm_jones, const FLOAT *latitude_rad, const int iau_order, JONES *fee_jones)
+                               const JONES *norm_jones, const FLOAT *latitude_rad, const int iau_order, JONES *fee_jones,
+                               FLOAT *legendret)
     {
         if (threadIdx.x % gridDim.x == 0)
             debug_printf("start (%3d,%3d,%3d)[%3d,%3d,%3d] \n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z);
@@ -437,20 +402,15 @@ extern "C"
         const FLOAT za = zas[i_direction];
         const FLOAT phi = M_PI_2 - az;
 
+        // Create a look-up table for the legendre polynomials
+        // Such that legendre_table[ m * nmax + (n-1) ] = legendre(n, m, u)
+        legendre_polynomials_device(legendret, zas, i_direction);
+
         // Set up our "P1sin" arrays. This is pretty expensive, but only depends
         // on the zenith angle and "n_max".
         FLOAT P1sin_arr[NMAX * NMAX + 2 * NMAX], P1_arr[NMAX * NMAX + 2 * NMAX];
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- P1sin_arr\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, P1sin_arr, NMAX * NMAX + 2 * NMAX);
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- P1_arr\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, P1_arr, NMAX * NMAX + 2 * NMAX);
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p=%3d <- i_direction\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &i_direction, i_direction);
-        jones_p1sin_device(coeffs.n_max, za, P1sin_arr, P1_arr);
-#if __HIPCC__
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p <- &blockIdx\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &blockIdx);
-#endif
+        jones_p1sin_device(zas, i_direction, P1sin_arr, P1_arr, legendret);
+
         const int x_offset = coeffs.x_offsets[blockIdx.y];
         const int y_offset = coeffs.y_offsets[blockIdx.y];
         JONES jm;
@@ -487,14 +447,18 @@ extern "C"
                                               const FEECoeffs *d_coeffs, int num_coeffs, const void *d_norm_jones,
                                               const FLOAT *d_latitude_rad, const int iau_order, void *d_results)
     {
+        // Allocate device memory for legendre polynomials
+        FLOAT *d_legendret;
+        GPUCHECK(gpuMalloc(&d_legendret, num_directions * (((NMAX+1)*(NMAX+2)) >> 1) * sizeof(int32_t)));
+
         dim3 gridDim, blockDim;
-        blockDim.x = warpSize;
-        gridDim.x = (int)ceil((double)num_directions / (double)blockDim.x);
+        blockDim.x = num_directions < warpSize ? num_directions : warpSize ;
+        gridDim.x =  num_directions < warpSize ? 1 : (num_directions - 1) / blockDim.x + 1;
         gridDim.y = num_coeffs;
         debug_printf("gridDim (%3d,%3d,%3d) blockDim: [%3d,%3d,%3d]\n", gridDim.x, gridDim.y, gridDim.z, blockDim.x, blockDim.y, blockDim.z);
         printf("gpu_fee_calc_jones 1\n");
         fee_kernel<<<gridDim, blockDim>>>(*d_coeffs, d_azs, d_zas, num_directions, (JONES *)d_norm_jones, d_latitude_rad,
-                                          iau_order, (JONES *)d_results);
+                                          iau_order, (JONES *)d_results, d_legendret);
         printf("gpu_fee_calc_jones 2\n");
 
         gpuError_t error_id;
@@ -516,6 +480,9 @@ extern "C"
         {
             return gpuGetErrorString(error_id);
         }
+
+        // Free device memory
+        GPUCHECK(gpuFree(d_legendret));
 
         return NULL;
     }
