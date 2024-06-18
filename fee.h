@@ -429,60 +429,58 @@ extern "C"
     {
         if (threadIdx.x % gridDim.x == 0)
             debug_printf("start (%3d,%3d,%3d)[%3d,%3d,%3d] \n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z);
-        for (int i_direction = blockIdx.x * blockDim.x + threadIdx.x; i_direction < num_directions;
-             i_direction += gridDim.x * blockDim.x)
-        {
-            if (threadIdx.x % gridDim.x == 0)
-                debug_printf("i direction: %d\n", i_direction);
-            const FLOAT az = azs[i_direction];
-            const FLOAT za = zas[i_direction];
-            const FLOAT phi = M_PI_2 - az;
+        int i_direction = blockIdx.x * blockDim.x + threadIdx.x;
 
-            // Set up our "P1sin" arrays. This is pretty expensive, but only depends
-            // on the zenith angle and "n_max".
-            FLOAT P1sin_arr[NMAX * NMAX + 2 * NMAX], P1_arr[NMAX * NMAX + 2 * NMAX];
-            if (threadIdx.x % gridDim.x == 0)
-                debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- P1sin_arr\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, P1sin_arr, NMAX * NMAX + 2 * NMAX);
-            if (threadIdx.x % gridDim.x == 0)
-                debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- P1_arr\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, P1_arr, NMAX * NMAX + 2 * NMAX);
-            if (threadIdx.x % gridDim.x == 0)
-                debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p=%3d <- i_direction\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &i_direction, i_direction);
-            jones_p1sin_device(coeffs.n_max, za, P1sin_arr, P1_arr);
+        if (threadIdx.x % gridDim.x == 0)
+            debug_printf("i direction: %d\n", i_direction);
+        const FLOAT az = azs[i_direction];
+        const FLOAT za = zas[i_direction];
+        const FLOAT phi = M_PI_2 - az;
+
+        // Set up our "P1sin" arrays. This is pretty expensive, but only depends
+        // on the zenith angle and "n_max".
+        FLOAT P1sin_arr[NMAX * NMAX + 2 * NMAX], P1_arr[NMAX * NMAX + 2 * NMAX];
+        if (threadIdx.x % gridDim.x == 0)
+            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- P1sin_arr\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, P1sin_arr, NMAX * NMAX + 2 * NMAX);
+        if (threadIdx.x % gridDim.x == 0)
+            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p+%x <- P1_arr\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, P1_arr, NMAX * NMAX + 2 * NMAX);
+        if (threadIdx.x % gridDim.x == 0)
+            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p=%3d <- i_direction\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &i_direction, i_direction);
+        jones_p1sin_device(coeffs.n_max, za, P1sin_arr, P1_arr);
 #if __HIPCC__
-            if (threadIdx.x % gridDim.x == 0)
-                debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p <- &blockIdx\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &blockIdx);
+        if (threadIdx.x % gridDim.x == 0)
+            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] %p <- &blockIdx\n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, &blockIdx);
 #endif
-            const int x_offset = coeffs.x_offsets[blockIdx.y];
-            const int y_offset = coeffs.y_offsets[blockIdx.y];
-            JONES jm;
-            jones_calc_sigmas_device(phi, za, (const COMPLEX *)coeffs.x_q1_accum + x_offset,
-                                     (const COMPLEX *)coeffs.x_q2_accum + x_offset, coeffs.x_m_accum + x_offset,
-                                     coeffs.x_n_accum + x_offset, coeffs.x_m_signs + x_offset, coeffs.x_m_abs_m + x_offset,
-                                     coeffs.x_lengths[blockIdx.y], P1sin_arr, P1_arr, 'x', &jm);
-            jones_calc_sigmas_device(phi, za, (const COMPLEX *)coeffs.y_q1_accum + y_offset,
-                                     (const COMPLEX *)coeffs.y_q2_accum + y_offset, coeffs.y_m_accum + y_offset,
-                                     coeffs.y_n_accum + y_offset, coeffs.y_m_signs + y_offset, coeffs.y_m_abs_m + y_offset,
-                                     coeffs.y_lengths[blockIdx.y], P1sin_arr, P1_arr, 'y', &jm);
+        const int x_offset = coeffs.x_offsets[blockIdx.y];
+        const int y_offset = coeffs.y_offsets[blockIdx.y];
+        JONES jm;
+        jones_calc_sigmas_device(phi, za, (const COMPLEX *)coeffs.x_q1_accum + x_offset,
+                                 (const COMPLEX *)coeffs.x_q2_accum + x_offset, coeffs.x_m_accum + x_offset,
+                                 coeffs.x_n_accum + x_offset, coeffs.x_m_signs + x_offset, coeffs.x_m_abs_m + x_offset,
+                                 coeffs.x_lengths[blockIdx.y], P1sin_arr, P1_arr, 'x', &jm);
+        jones_calc_sigmas_device(phi, za, (const COMPLEX *)coeffs.y_q1_accum + y_offset,
+                                 (const COMPLEX *)coeffs.y_q2_accum + y_offset, coeffs.y_m_accum + y_offset,
+                                 coeffs.y_n_accum + y_offset, coeffs.y_m_signs + y_offset, coeffs.y_m_abs_m + y_offset,
+                                 coeffs.y_lengths[blockIdx.y], P1sin_arr, P1_arr, 'y', &jm);
 
-            if (norm_jones != NULL)
-            {
-                JONES norm = norm_jones[blockIdx.y];
-                jm.j00 = CDIV(jm.j00, norm.j00);
-                jm.j01 = CDIV(jm.j01, norm.j01);
-                jm.j10 = CDIV(jm.j10, norm.j10);
-                jm.j11 = CDIV(jm.j11, norm.j11);
-            }
-
-            if (latitude_rad != NULL)
-            {
-                HADec hadec = azel_to_hadec(az, M_PI_2 - za, *latitude_rad);
-                FLOAT pa = get_parallactic_angle(hadec, *latitude_rad);
-                apply_pa_correction(&jm, pa, iau_order);
-            }
-
-            // Copy the Jones matrix to global memory.
-            fee_jones[blockIdx.y * num_directions + i_direction] = jm;
+        if (norm_jones != NULL)
+        {
+            JONES norm = norm_jones[blockIdx.y];
+            jm.j00 = CDIV(jm.j00, norm.j00);
+            jm.j01 = CDIV(jm.j01, norm.j01);
+            jm.j10 = CDIV(jm.j10, norm.j10);
+            jm.j11 = CDIV(jm.j11, norm.j11);
         }
+
+        if (latitude_rad != NULL)
+        {
+            HADec hadec = azel_to_hadec(az, M_PI_2 - za, *latitude_rad);
+            FLOAT pa = get_parallactic_angle(hadec, *latitude_rad);
+            apply_pa_correction(&jm, pa, iau_order);
+        }
+
+        // Copy the Jones matrix to global memory.
+        fee_jones[blockIdx.y * num_directions + i_direction] = jm;
     }
 
     extern "C" const char *gpu_fee_calc_jones(const FLOAT *d_azs, const FLOAT *d_zas, int num_directions,
@@ -494,18 +492,26 @@ extern "C"
         gridDim.x = (int)ceil((double)num_directions / (double)blockDim.x);
         gridDim.y = num_coeffs;
         debug_printf("gridDim (%3d,%3d,%3d) blockDim: [%3d,%3d,%3d]\n", gridDim.x, gridDim.y, gridDim.z, blockDim.x, blockDim.y, blockDim.z);
+        printf("gpu_fee_calc_jones 1\n");
         fee_kernel<<<gridDim, blockDim>>>(*d_coeffs, d_azs, d_zas, num_directions, (JONES *)d_norm_jones, d_latitude_rad,
                                           iau_order, (JONES *)d_results);
+        printf("gpu_fee_calc_jones 2\n");
 
         gpuError_t error_id;
+        printf("gpu_fee_calc_jones 3\n");
 #ifdef DEBUG
+        printf("gpu_fee_calc_jones 3.1\n");
         error_id = gpuDeviceSynchronize();
+        printf("gpu_fee_calc_jones 3.2\n");
         if (error_id != gpuSuccess)
         {
+        printf("gpu_fee_calc_jones 3.3\n");
             return gpuGetErrorString(error_id);
         }
 #endif
+        printf("gpu_fee_calc_jones 4\n");
         error_id = gpuGetLastError();
+        printf("gpu_fee_calc_jones 5\n");
         if (error_id != gpuSuccess)
         {
             return gpuGetErrorString(error_id);
