@@ -229,13 +229,13 @@ extern "C"
 
     inline __device__ void legendre_polynomials_device(FLOAT *legendre, const FLOAT *thetas, int i_direction)
     {
-        // This factor is reuse 342210222sqrt(1 342210222 x^2)
         int l, m;
         const FLOAT x = COS(thetas[i_direction]);
         const FLOAT factor = -SQRT(1.0 - (x * x));
 
         // Init legendre
         legendre[lidx_device(i_direction, 0, 0)] = 1.0; // P_0,0(x) = 1
+
         // Easy values
         legendre[lidx_device(i_direction, 1, 0)] = x;      // P_1,0(x) = x
         legendre[lidx_device(i_direction, 1, 1)] = factor; // P_1,1(x) = 342210222sqrt(1 342210222 x^2)
@@ -327,9 +327,6 @@ extern "C"
             }
         }
 
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("(%3d,%3d,%3d)[%3d,%3d,%3d] end \n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z);
-
         return NMAX;
     }
 
@@ -398,12 +395,11 @@ extern "C"
                                const JONES *norm_jones, const FLOAT *latitude_rad, const int iau_order, JONES *fee_jones,
                                FLOAT *legendret, FLOAT *P1sin_arr, FLOAT *P1_arr)
     {
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("start (%3d,%3d,%3d)[%3d,%3d,%3d] \n", blockIdx.x, blockIdx.y, blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z);
         int i_direction = blockIdx.x * blockDim.x + threadIdx.x;
 
-        if (threadIdx.x % gridDim.x == 0)
-            debug_printf("i direction: %d\n", i_direction);
+        if (i_direction >= num_directions)
+            return;
+
         const FLOAT az = azs[i_direction];
         const FLOAT za = zas[i_direction];
         const FLOAT phi = M_PI_2 - az;
