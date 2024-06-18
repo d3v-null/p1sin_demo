@@ -460,26 +460,18 @@ extern "C"
         gridDim.x =  num_directions < warpSize ? 1 : (num_directions - 1) / blockDim.x + 1;
         gridDim.y = num_coeffs;
         debug_printf("gridDim (%3d,%3d,%3d) blockDim: [%3d,%3d,%3d]\n", gridDim.x, gridDim.y, gridDim.z, blockDim.x, blockDim.y, blockDim.z);
-        printf("gpu_fee_calc_jones 1\n");
         fee_kernel<<<gridDim, blockDim>>>(*d_coeffs, d_azs, d_zas, num_directions, (JONES *)d_norm_jones, d_latitude_rad,
                                           iau_order, (JONES *)d_results, d_legendret, d_P1sin_arr, d_P1_arr);
-        printf("gpu_fee_calc_jones 2\n");
 
         gpuError_t error_id;
-        printf("gpu_fee_calc_jones 3\n");
 #ifdef DEBUG
-        printf("gpu_fee_calc_jones 3.1\n");
         error_id = gpuDeviceSynchronize();
-        printf("gpu_fee_calc_jones 3.2\n");
         if (error_id != gpuSuccess)
         {
-        printf("gpu_fee_calc_jones 3.3\n");
             return gpuGetErrorString(error_id);
         }
 #endif
-        printf("gpu_fee_calc_jones 4\n");
         error_id = gpuGetLastError();
-        printf("gpu_fee_calc_jones 5\n");
         if (error_id != gpuSuccess)
         {
             return gpuGetErrorString(error_id);
